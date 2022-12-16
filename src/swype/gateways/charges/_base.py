@@ -1,3 +1,4 @@
+from typing import Optional, AnyStr
 from swype.exceptions import SwypeGatewayError
 from swype.gateways.base import SwypeBase
 
@@ -12,6 +13,7 @@ class Charge(SwypeBase):
         url = self.path + f"?type={_type}"
         self.path = url
         self.type = _type
+        self.txn_ref: Optional[AnyStr] = None
 
     def submit(self, data: dict):
         assert isinstance(data, dict), (

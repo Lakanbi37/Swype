@@ -1,9 +1,9 @@
-from typing import Optional, AnyStr, Dict, Any
+from typing import Optional, AnyStr, Dict
 
-from swype.core import Currency
-from swype.core import CreditCard
-from swype.gateways.charges._base import Charge
+from swype.core import Currency, Transaction
+from swype.exceptions import TransactionError
 from swype.exceptions.upgrade_required_error import UpgradeRequiredError
+from swype.gateways.charges._base import Charge
 from swype.utils.generator import generate_ref
 
 
@@ -171,10 +171,9 @@ class Card(Charge):
 
     def __init__(self, _type="card", *args, **kwargs):
         super().__init__(_type, *args, **kwargs)
-        self._credit_card: Optional[CreditCard] = None
-        self._customer: Optional[Dict] = None
+        self._transaction: Optional[Transaction] = None
 
-    def collect(self, customer: Dict[AnyStr, Any], card: Dict[AnyStr, Any]):
+    def initiate(self, transaction: Transaction):
         """
         Collect payment details from customer You can use a custom form to collect the card details from the
         customer including any extra information needed, see a sample of the card details to collect from the customer. {
@@ -182,12 +181,13 @@ class Card(Charge):
         "amount":"1000", "email":"user@gmail.com", "fullname":"yemi desola", "tx_ref":"MC-3243e",
         "redirect_url":"https://webhook.site/3ed41e38-2c79-4c79-b455-97398730866c" }
         """
-        self._credit_card = CreditCard(**card)
-        self._customer = customer
-        client = self._credit_card + dict(tx_ref=generate_ref(), **customer)
-        return self.config.encrypt(client)
+        self._transaction = transaction
+        data = self._transaction.data(stringify=True)
+        assert isinstance(data, str), TransactionError("Transaction data must be string")
+        client = self.config.encrypt(data)
+        return self._initiate(client)
 
-    def initiate(self, client):
+    def _initiate(self, client):
         assert isinstance(client, str), (
                 "'%s' card holder data must be an encrypted string"
                 "transmission of naked card holder is forbidden"
@@ -196,8 +196,12 @@ class Card(Charge):
         fields, values = ["client"], [client]
         return self.submit(self.map_fields(fields, values))
 
-    def authenticate(self, client):
-        return self.initiate(client)
+    def authenticate(self, authorization: Dict):
+        self._transaction.card.authorize(authorization)
+        data = self._transaction.data(stringify=True)
+        assert isinstance(data, str), TransactionError("Transaction data must be string")
+        client = self.config.encrypt(data)
+        return self._initiate(client)
 
     def validate(self, otp, ref, txn_type=None):
         return self.complete(otp, ref, txn_type)

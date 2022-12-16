@@ -62,6 +62,19 @@ class CreditCard:
                 raise CardError('The following accepted_cards are '
                                 'unknown: %s' % difference)
 
+    def __str__(self):
+        return _("%(card_type)s %(number)s (Expires: %(expiry)s)") % {
+            'card_type': self.bankcard_type(self._number),
+            'number': self.number,
+            'expiry': self.expiry_month()}
+
+    def __repr__(self):
+        return f"{self.bankcard_type(self._number)}({self.number})"
+
+    @property
+    def number(self):
+        return 'XXXX-XXXX-XXXX-%s' % self._number[-4:]
+
     def __add__(self, other):
         assert isinstance(other, dict), "you can only add a dict instance"
         assert self.is_valid, CardError("Card data is invalid")
@@ -99,7 +112,7 @@ class CreditCard:
         return True
 
     @property
-    def _details(self):
+    def data(self):
         if self.is_valid:
             details = dict(
                 expiry_month=self._expiry_month,
@@ -109,7 +122,7 @@ class CreditCard:
             )
             if self._authorization is not None:
                 details.update(dict(authorization=self._authorization))
-            return json.dumps(details)
+            return details
 
     @staticmethod
     def matches(card_number, lengths, prefixes):
@@ -136,7 +149,7 @@ class CreditCard:
         Test whether a bankcard number passes the Luhn algorithm.
         """
         card_number = str(card_number)
-        sum = 0
+        _sum = 0
         num_digits = len(card_number)
         odd_even = num_digits & 1
 
@@ -146,11 +159,12 @@ class CreditCard:
                 digit = digit * 2
             if digit > 9:
                 digit = digit - 9
-            sum = sum + digit
-
-        return (sum % 10) == 0
+            _sum = _sum + digit
+        return (_sum % 10) == 0
 
     def authorize(self, data: typing.Dict):
         assert "mode" in data
         self._authorization = data
 
+    def expiry_month(self):
+        return self._expiry_month.strftime('%m/%y')

@@ -14,3 +14,4 @@ from swype.exceptions.unexpected_error import UnexpectedError
 from swype.exceptions.upgrade_required_error import UpgradeRequiredError
 from swype.exceptions.card_error import CardError
 from swype.exceptions.gateway_error import SwypeGatewayError
+from swype.exceptions.transaction_error import TransactionError
